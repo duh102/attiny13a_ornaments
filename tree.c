@@ -53,7 +53,7 @@ const uint8_t loop_portb[] PROGMEM = {
 #define NUM_LEDS 20
 #define NUM_POSITIONS 10
 const uint8_t sin_vals[] PROGMEM = {
-  0, 49,141,212,255
+  0, 35, 99, 195, 255
 };
 int8_t d_status[] = {
   3,
@@ -84,6 +84,32 @@ volatile uint8_t  pwmCount = 0;
 volatile uint8_t  loop_portb_mem = 0;
 volatile uint16_t counter0 = 0;
 const uint16_t colorInterval = 512;
+volatile uint8_t x = 0, a = 0, b = 0, c = 0;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
+void init_rng(uint8_t s1,uint8_t s2,uint8_t s3) //Can also be used to seed the rng with more entropy during use.
+{
+	//XOR new entropy into key state
+	a ^=s1;
+	b ^=s2;
+	c ^=s3;
+
+	x++;
+	a = (a^c^x);
+	b = (b+a);
+	c = (c+(b>>1)^a);
+}
+
+uint8_t randomize()
+{
+	x++;               //x is incremented every round and is not affected by any other variable
+	a = (a^c^x);       //note the mix of addition and XOR
+	b = (b+a);         //And the use of very few instructions
+	c = (c+(b>>1)^a);  //the right shift is to ensure that high-order bits from b can affect  
+	return(c);          //low order bits of other variables
+}
+#pragma GCC diagnostic pop
 
 int main() {
   // Allow changes to the clock prescaler
@@ -91,8 +117,10 @@ int main() {
   //  CLKPR[3:0] sets the clock division factor
   CLKPR = 0;
 
+  init_rng(0x14, 0x67, 0x18);
+
   // set initial PWM value
-  for(uint8_t i = 0; i < NUM_LEDS; i++) {
+  for(uint8_t i = 0; i < NUM_POSITIONS; i++) {
     int8_t state = d_status[i];
     d_pwm[i] = pgm_read_byte(&sin_vals[state<0?-state:state]);
   }
@@ -116,6 +144,9 @@ int main() {
     if(counter0 % colorInterval == 0) {
       for(uint8_t i = 0; i < NUM_POSITIONS; i++) {
         int8_t state = d_status[i];
+        if( (state == 4 || state == 0) && randomize() % 21 != 0 ) {
+          continue;
+        }
         state = state == -1? 0 : state == SIN_FRAMES? -(state-1) : state+1;
         d_status[i] = state;
         d_pwm[i] = pgm_read_byte(&sin_vals[state<0?-state:state]);

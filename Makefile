@@ -1,4 +1,4 @@
-FLAGS = -mmcu=attiny13a -DF_CPU=9600000UL -Os -std=c99
+FLAGS = -mmcu=attiny13a -DF_CPU=9600000UL -Os -std=c99 -Wall -Werror
 
 all: tree.hex
 
@@ -10,4 +10,4 @@ clean:
 
 %.elf: %.c
 	avr-gcc $(FLAGS) $^ -o $@
-	avr-size -C --mcu=attiny10 $@
+	avr-size -C --mcu=attiny13a $@
